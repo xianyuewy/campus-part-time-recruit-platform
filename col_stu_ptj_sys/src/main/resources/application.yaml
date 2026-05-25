@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: col_stu_ptj_sys
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 30MB
+  datasource:
+    url: jdbc:mysql://localhost:3306/col_stu_ptj_sys?serverTimezone=Asia/Shanghai
+    username: root
+    password: 030822yuan
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+
+# JWT??
+jwt:
+  secret-key: "mySuperSecretKeyThatIsVeryLongAndSecureForJWTTokenGeneration2024"
+  access-token-expiration: 900000    # 15??
+  refresh-token-expiration: 604800000 # 7?
+
+# MyBatis-Plus??
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  type-aliases-package: org.example.col_stu_ptj_sys.entity
+
+# ????
+logging:
+  level:
+    org.example.col_stu_ptj_sys: DEBUG
+
+app:
+  upload-dir: D:/code/col_stu_ptj_sys/uploads
