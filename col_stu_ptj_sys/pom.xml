@@ -108,8 +108,34 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-    </dependencies>
+        <!--ai依赖-->
+        <!-- LangChain4j 核心 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>0.32.0</version>
+        </dependency>
 
+        <!-- 火山引擎对接用：OpenAI 兼容模块 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>0.32.0</version>
+        </dependency>
+
+        <!-- 本地嵌入模型（生成文本向量，RAG必备） -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2-q</artifactId>
+            <version>0.32.0</version>
+        </dependency>
+        <!-- ONNX Runtime（用于本地嵌入模型推理） -->
+        <dependency>
+            <groupId>com.microsoft.onnxruntime</groupId>
+            <artifactId>onnxruntime</artifactId>
+            <version>1.18.0</version> <!-- 请使用与LangChain4j 0.32.0兼容的最新稳定版 -->
+        </dependency>
+    </dependencies>
     <build>
         <plugins>
             <plugin>

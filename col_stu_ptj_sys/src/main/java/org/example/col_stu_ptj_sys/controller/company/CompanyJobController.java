@@ -58,8 +58,11 @@ public class CompanyJobController {
     @GetMapping("/jobs")
     public ResponseEntity<ApiResponse<PageResponse<Job>>> myJobs(
             @RequestParam(defaultValue = "1") long current,
-            @RequestParam(defaultValue = "10") long size) {
-        return ResponseEntity.ok(ApiResponse.success(companyJobService.myJobs(current, size)));
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String jobType,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(ApiResponse.success(companyJobService.myJobs(current, size, keyword, jobType, status)));
     }
 
     @Operation(summary = "编辑岗位")
@@ -96,8 +99,9 @@ public class CompanyJobController {
     public ResponseEntity<ApiResponse<PageResponse<ApplicantVO>>> myApplicants(
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size,
-            @RequestParam(required = false) String status) {
-        return ResponseEntity.ok(ApiResponse.success(companyJobService.myApplicants(current, size, status)));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String jobTitle) {
+        return ResponseEntity.ok(ApiResponse.success(companyJobService.myApplicants(current, size, status, jobTitle)));
     }
 
     @Operation(summary = "更新申请状态")

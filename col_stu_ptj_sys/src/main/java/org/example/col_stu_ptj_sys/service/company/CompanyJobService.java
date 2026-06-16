@@ -2,6 +2,10 @@ package org.example.col_stu_ptj_sys.service.company;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.flogger.Flogger;
+import lombok.extern.slf4j.Slf4j;
+import org.example.col_stu_ptj_sys.ai.service.AiJobAuditService;
+import org.example.col_stu_ptj_sys.dto.JobAuditResult;
 import org.example.col_stu_ptj_sys.dto.JobReviewVO;
 import org.example.col_stu_ptj_sys.dto.PageResponse;
 import org.example.col_stu_ptj_sys.dto.company.ApplicantVO;
@@ -32,9 +36,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CompanyJobService {
     private final JobService jobService;
     private final JobApplicationService jobApplicationService;
@@ -44,6 +50,7 @@ public class CompanyJobService {
     private final StudentResumeBusinessService studentResumeBusinessService;
     private final NotificationCenterService notificationCenterService;
     private final UserDisplayService userDisplayService;
+    private final AiJobAuditService aiJobAuditService;
 
     public CompanyProfile myProfile() {
         User me = requireCurrentCompany();
@@ -73,27 +80,63 @@ public class CompanyJobService {
         }
     }
 
-    @Transactional
-    public void publishJob(PublishJobRequest req) {
-        User me = requireCurrentCompany();
-        if (me.getAuthStatus() != AuthStatus.APPROVED) {
-            throw new BusinessException(403, "企业资质未通过，暂不可发布岗位");
-        }
-        Job j = new Job();
-        j.setPublisherUserId(me.getId());
-        j.setTitle(req.getTitle());
-        j.setDescription(req.getDescription());
-        j.setLocation(req.getLocation());
-        j.setJobType(req.getJobType());
-        j.setSalaryText(req.getSalaryText());
-        j.setSalaryMin(req.getSalaryMin());
-        j.setSalaryMax(req.getSalaryMax());
-        j.setContactPhone(trimToNull(req.getContactPhone()));
-        j.setContactWechat(trimToNull(req.getContactWechat()));
-        j.setExpireAt(normalizeExpireAt(req.getExpireAt()));
-        j.setStatus(JobStatus.PENDING);
-        jobService.save(j);
+//    @Transactional
+//    public void publishJob(PublishJobRequest req) {
+//        User me = requireCurrentCompany();
+//        if (me.getAuthStatus() != AuthStatus.APPROVED) {
+//            throw new BusinessException(403, "企业资质未通过，暂不可发布岗位");
+//        }
+//        Job j = new Job();
+//        j.setPublisherUserId(me.getId());
+//        j.setTitle(req.getTitle());
+//        j.setDescription(req.getDescription());
+//        j.setLocation(req.getLocation());
+//        j.setJobType(req.getJobType());
+//        j.setSalaryText(req.getSalaryText());
+//        j.setSalaryMin(req.getSalaryMin());
+//        j.setSalaryMax(req.getSalaryMax());
+//        j.setContactPhone(trimToNull(req.getContactPhone()));
+//        j.setContactWechat(trimToNull(req.getContactWechat()));
+//        j.setExpireAt(normalizeExpireAt(req.getExpireAt()));
+//        j.setStatus(JobStatus.PENDING);
+//        jobService.save(j);
+//    }
+@Transactional
+public void publishJob(PublishJobRequest req) {
+    User me = requireCurrentCompany();
+    if (me.getAuthStatus() != AuthStatus.APPROVED) {
+        throw new BusinessException(403, "企业资质未通过，暂不可发布岗位");
     }
+
+    // 1. 保存岗位，初始状态为待审核
+    Job j = new Job();
+    j.setPublisherUserId(me.getId());
+    j.setTitle(req.getTitle());
+    j.setDescription(req.getDescription());
+    j.setLocation(req.getLocation());
+    j.setJobType(req.getJobType());
+    j.setSalaryText(req.getSalaryText());
+    j.setSalaryMin(req.getSalaryMin());
+    j.setSalaryMax(req.getSalaryMax());
+    j.setContactPhone(trimToNull(req.getContactPhone()));
+    j.setContactWechat(trimToNull(req.getContactWechat()));
+    j.setExpireAt(normalizeExpireAt(req.getExpireAt()));
+    j.setStatus(JobStatus.PENDING);
+    jobService.save(j);
+
+    // 异步触发AI重新审核，不阻塞接口
+    aiJobAuditService.asyncAuditJob(
+            j.getId(),
+            j.getTitle(),
+            j.getDescription(),
+            j.getLocation(),
+            j.getJobType(),
+            j.getSalaryText(),
+            j.getSalaryMin(),
+            j.getSalaryMax(),
+            me.getId()
+    );
+}
 
     @Transactional
     public void submitQualificationAudit() {
@@ -122,32 +165,75 @@ public class CompanyJobService {
         userService.updateById(me);
     }
 
-    public PageResponse<Job> myJobs(long current, long size) {
+    public PageResponse<Job> myJobs(long current, long size, String keyword, String jobType, String status) {
         User me = requireCurrentCompany();
-        var page = jobService.lambdaQuery()
-                .eq(Job::getPublisherUserId, me.getId())
-                .orderByDesc(Job::getCreateTime)
-                .page(new Page<>(current, size));
+        var q = jobService.lambdaQuery().eq(Job::getPublisherUserId, me.getId());
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            q.and(w -> w.like(Job::getTitle, kw).or().like(Job::getDescription, kw));
+        }
+        if (StringUtils.hasText(jobType)) {
+            q.like(Job::getJobType, jobType.trim());
+        }
+        if (StringUtils.hasText(status)) {
+            try {
+                q.eq(Job::getStatus, JobStatus.valueOf(status.trim().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("岗位状态参数不合法");
+            }
+        }
+        var page = q.orderByDesc(Job::getCreateTime).page(new Page<>(current, size));
         return PageResponse.of(page);
     }
 
-    @Transactional
-    public void updateJob(Long jobId, PublishJobRequest req) {
-        User me = requireCurrentCompany();
-        Job j = requireCompanyJob(me.getId(), jobId);
-        j.setTitle(req.getTitle());
-        j.setDescription(req.getDescription());
-        j.setLocation(req.getLocation());
-        j.setJobType(req.getJobType());
-        j.setSalaryText(req.getSalaryText());
-        j.setSalaryMin(req.getSalaryMin());
-        j.setSalaryMax(req.getSalaryMax());
-        j.setContactPhone(trimToNull(req.getContactPhone()));
-        j.setContactWechat(trimToNull(req.getContactWechat()));
-        j.setExpireAt(normalizeExpireAt(req.getExpireAt()));
-        j.setStatus(JobStatus.PENDING);
-        jobService.updateById(j);
-    }
+//    @Transactional
+//    public void updateJob(Long jobId, PublishJobRequest req) {
+//        User me = requireCurrentCompany();
+//        Job j = requireCompanyJob(me.getId(), jobId);
+//        j.setTitle(req.getTitle());
+//        j.setDescription(req.getDescription());
+//        j.setLocation(req.getLocation());
+//        j.setJobType(req.getJobType());
+//        j.setSalaryText(req.getSalaryText());
+//        j.setSalaryMin(req.getSalaryMin());
+//        j.setSalaryMax(req.getSalaryMax());
+//        j.setContactPhone(trimToNull(req.getContactPhone()));
+//        j.setContactWechat(trimToNull(req.getContactWechat()));
+//        j.setExpireAt(normalizeExpireAt(req.getExpireAt()));
+//        j.setStatus(JobStatus.PENDING);
+//        jobService.updateById(j);
+//    }
+@Transactional
+public void updateJob(Long jobId, PublishJobRequest req) {
+    User me = requireCurrentCompany();
+    Job j = requireCompanyJob(me.getId(), jobId);
+    j.setTitle(req.getTitle());
+    j.setDescription(req.getDescription());
+    j.setLocation(req.getLocation());
+    j.setJobType(req.getJobType());
+    j.setSalaryText(req.getSalaryText());
+    j.setSalaryMin(req.getSalaryMin());
+    j.setSalaryMax(req.getSalaryMax());
+    j.setContactPhone(trimToNull(req.getContactPhone()));
+    j.setContactWechat(trimToNull(req.getContactWechat()));
+    j.setExpireAt(normalizeExpireAt(req.getExpireAt()));
+    j.setStatus(JobStatus.PENDING);
+    j.setAuditRemark("正在AI审核中，请稍候");
+    jobService.updateById(j);
+
+    // 异步触发AI重新审核，不阻塞接口
+    aiJobAuditService.asyncAuditJob(
+            j.getId(),
+            j.getTitle(),
+            j.getDescription(),
+            j.getLocation(),
+            j.getJobType(),
+            j.getSalaryText(),
+            j.getSalaryMin(),
+            j.getSalaryMax(),
+            me.getId()
+    );
+}
 
     @Transactional
     public void offlineJob(Long jobId) {
@@ -172,13 +258,26 @@ public class CompanyJobService {
     }
 
     @Transactional
-    public PageResponse<ApplicantVO> myApplicants(long current, long size, String status) {
+    public PageResponse<ApplicantVO> myApplicants(long current, long size, String status, String jobTitle) {
         User me = requireCurrentCompany();
         if (!StringUtils.hasText(status)) {
             markSubmittedToViewedForCompany(me.getId());
         }
         var query = jobApplicationService.lambdaQuery()
                 .eq(JobApplication::getCompanyUserId, me.getId());
+        if (StringUtils.hasText(jobTitle)) {
+            var jobIds = jobService.lambdaQuery()
+                    .eq(Job::getPublisherUserId, me.getId())
+                    .like(Job::getTitle, jobTitle.trim())
+                    .list()
+                    .stream()
+                    .map(Job::getId)
+                    .toList();
+            if (jobIds.isEmpty()) {
+                return PageResponse.of(new Page<>(current, size, 0));
+            }
+            query.in(JobApplication::getJobId, jobIds);
+        }
         if (StringUtils.hasText(status)) {
             try {
                 query.eq(JobApplication::getStatus, ApplicationStatus.valueOf(status.toUpperCase()));

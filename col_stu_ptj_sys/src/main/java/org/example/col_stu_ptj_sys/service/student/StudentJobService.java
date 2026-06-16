@@ -116,32 +116,52 @@ public class StudentJobService {
 
     public PageResponse<StudentApplicationVO> myApplications(long current, long size) {
         User me = requireCurrentStudent();
+        return listApplicationsByStudentUserId(me.getId(), current, size);
+    }
+
+    /**
+     * 按学生用户ID查询投递记录（供 AI 工具等无登录上下文场景使用）
+     */
+    public PageResponse<StudentApplicationVO> listApplicationsByStudentUserId(Long studentUserId, long current, long size) {
+        if (studentUserId == null || studentUserId <= 0) {
+            throw new BusinessException("学生用户ID无效");
+        }
+        User student = userService.getById(studentUserId);
+        if (student == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (student.getRole() != UserRole.STUDENT) {
+            throw new BusinessException("仅可查询学生用户的投递记录");
+        }
+
         var page = jobApplicationService.lambdaQuery()
-                .eq(JobApplication::getStudentUserId, me.getId())
+                .eq(JobApplication::getStudentUserId, studentUserId)
                 .orderByDesc(JobApplication::getCreateTime)
                 .page(new Page<>(current, size));
 
         Page<StudentApplicationVO> voPage = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
-        voPage.setRecords(page.getRecords().stream().map(app -> {
-            Job job = jobService.getById(app.getJobId());
-            User company = userService.getById(app.getCompanyUserId());
-            return StudentApplicationVO.builder()
-                    .id(app.getId())
-                    .jobId(app.getJobId())
-                    .jobTitle(job != null ? job.getTitle() : null)
-                    .companyUserId(app.getCompanyUserId())
-                    .companyUsername(company != null ? company.getUsername() : null)
-                    .companyDisplayName(company != null ? userDisplayService.publicDisplayName(company) : null)
-                    .status(app.getStatus())
-                    .statusLabel(app.getStatus() != null ? app.getStatus().getDesc() : "")
-                    .intention(app.getIntention())
-                    .interviewTime(app.getInterviewTime())
-                    .interviewLocation(app.getInterviewLocation())
-                    .interviewNote(app.getInterviewNote())
-                    .createTime(app.getCreateTime())
-                    .build();
-        }).toList());
+        voPage.setRecords(page.getRecords().stream().map(this::toApplicationVo).toList());
         return PageResponse.of(voPage);
+    }
+
+    private StudentApplicationVO toApplicationVo(JobApplication app) {
+        Job job = jobService.getById(app.getJobId());
+        User company = userService.getById(app.getCompanyUserId());
+        return StudentApplicationVO.builder()
+                .id(app.getId())
+                .jobId(app.getJobId())
+                .jobTitle(job != null ? job.getTitle() : null)
+                .companyUserId(app.getCompanyUserId())
+                .companyUsername(company != null ? company.getUsername() : null)
+                .companyDisplayName(company != null ? userDisplayService.publicDisplayName(company) : null)
+                .status(app.getStatus())
+                .statusLabel(app.getStatus() != null ? app.getStatus().getDesc() : "")
+                .intention(app.getIntention())
+                .interviewTime(app.getInterviewTime())
+                .interviewLocation(app.getInterviewLocation())
+                .interviewNote(app.getInterviewNote())
+                .createTime(app.getCreateTime())
+                .build();
     }
 
     @Transactional

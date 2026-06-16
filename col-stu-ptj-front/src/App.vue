@@ -6,7 +6,9 @@
       <el-icon class="back-home-icon"><House /></el-icon>
       返回首页
     </el-button>
+
   </div>
+  <AiChatService />
 </template>
 
 <script setup>

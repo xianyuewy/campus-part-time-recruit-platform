@@ -1,140 +1,149 @@
 <template>
-  <div>
-    <h2 class="page-title">信用监管</h2>
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="信用档案" name="profiles">
-        <el-card class="mb16">
+  <div class="feature-page">
+    <section class="page-hero page-hero--admin">
+      <div class="page-hero-bg" aria-hidden="true" />
+      <div class="page-hero-inner">
+        <span class="page-hero-badge"><el-icon><Medal /></el-icon> 信用治理</span>
+        <h1 class="page-hero-title">信用<span class="accent">监管</span></h1>
+        <p class="page-hero-sub">管理用户信用档案、人工调分，并处理平台争议工单。</p>
+      </div>
+    </section>
+
+    <div class="feature-body">
+      <div class="table-card">
+        <div class="tabs-bar">
+          <el-tabs v-model="activeTab" class="styled-tabs" @tab-change="onTabChange">
+            <el-tab-pane label="信用档案" name="profiles" />
+            <el-tab-pane label="争议工单" name="disputes" />
+          </el-tabs>
+        </div>
+
+        <div v-if="activeTab === 'profiles'" class="tab-toolbar">
           <el-input
             v-model="profileKw"
             clearable
             placeholder="按用户名搜索"
-            style="width: 240px; margin-right: 12px"
+            :prefix-icon="Search"
+            class="kw-input"
+            @keyup.enter="loadProfiles"
             @clear="loadProfiles"
           />
-          <el-button type="primary" @click="loadProfiles">查询</el-button>
-        </el-card>
-        <el-card>
-          <el-table
-            :data="profiles.records"
-            v-loading="pLoading"
-            border
-            table-layout="fixed"
-            class="credit-profiles-table"
-            style="width: 100%"
-          >
-            <el-table-column prop="userId" label="用户ID" min-width="200" show-overflow-tooltip align="left" />
-            <el-table-column prop="username" label="用户名" min-width="130" show-overflow-tooltip align="left" />
-            <el-table-column prop="score" label="信用分" width="88" align="center" />
-            <el-table-column label="等级" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag size="small" type="info" effect="plain">{{ creditLevelLabel(row.creditLevel) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="96" align="center" fixed="right">
-              <template #default="{ row }">
-                <el-button type="primary" size="small" link @click="openAdjust(row)">调分</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="pager">
-            <el-pagination
-              background
-              layout="prev, pager, next, total"
-              :total="profiles.total"
-              v-model:current-page="pQuery.current"
-              v-model:page-size="pQuery.size"
-              @current-change="loadProfiles"
-            />
-          </div>
-        </el-card>
-      </el-tab-pane>
-      <el-tab-pane label="争议工单" name="disputes">
-        <el-card class="mb16">
+          <el-button type="primary" round :icon="Search" :loading="pLoading" @click="loadProfiles">查询</el-button>
+        </div>
+
+        <div v-else class="tab-toolbar">
           <el-select v-model="dQuery.status" clearable placeholder="全部状态" style="width: 160px" @change="loadDisputes">
             <el-option label="待处理" value="PENDING" />
             <el-option label="已处理" value="RESOLVED" />
             <el-option label="已驳回" value="REJECTED" />
           </el-select>
-        </el-card>
-        <el-card>
-          <el-table
-            :data="disputes.records"
-            v-loading="dLoading"
-            border
-            table-layout="fixed"
-            style="width: 100%"
-          >
-            <el-table-column prop="id" label="ID" width="160" />
-            <el-table-column label="申诉人" width="120" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.reporterDisplayName || row.reporterUsername || '—' }}</template>
-            </el-table-column>
-            <el-table-column label="被诉方" width="120" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.targetDisplayName || row.targetUsername || '—' }}</template>
-            </el-table-column>
-            <el-table-column label="关联类型" width="120">
-              <template #default="{ row }">{{ creditRelatedTypeLabel(row.relatedType) }}</template>
-            </el-table-column>
-            <el-table-column prop="relatedId" label="关联ID" width="90" />
-            <el-table-column prop="reason" label="事由" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="supplementText" label="补充说明" min-width="160" show-overflow-tooltip />
-            <el-table-column label="证据材料" min-width="200">
-              <template #default="{ row }">
-                <template v-if="row.evidenceUrls && row.evidenceUrls.length">
-                  <div v-for="(u, i) in row.evidenceUrls" :key="i" class="ev-link">
-                    <el-link :href="resolveUploadUrl(u)" target="_blank" type="primary">附件{{ i + 1 }}</el-link>
-                  </div>
-                </template>
-                <span v-else>—</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">{{ disputeStatusLabel(row.status) }}</template>
-            </el-table-column>
-            <el-table-column prop="createTime" label="创建时间" width="180" />
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  v-if="row.status === 'PENDING'"
-                  type="success"
-                  size="small"
-                  @click="resolveRow(row, 'RESOLVED')"
-                >处理</el-button>
-                <el-button
-                  v-if="row.status === 'PENDING'"
-                  type="danger"
-                  size="small"
-                  @click="resolveRow(row, 'REJECTED')"
-                >驳回</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="pager">
-            <el-pagination
-              background
-              layout="prev, pager, next, total"
-              :total="disputes.total"
-              v-model:current-page="dQuery.current"
-              v-model:page-size="dQuery.size"
-              @current-change="loadDisputes"
-            />
-          </div>
-        </el-card>
-      </el-tab-pane>
-    </el-tabs>
+        </div>
 
-    <el-dialog v-model="adjustVisible" title="人工调整信用分" width="420px" @close="resetAdjust">
-      <el-form label-width="80px">
-        <el-form-item label="用户"><span>{{ adjustRow?.username }}</span></el-form-item>
+        <el-table
+          v-if="activeTab === 'profiles'"
+          :data="profiles.records"
+          v-loading="pLoading"
+          stripe
+          class="data-table credit-profiles-table"
+        >
+          <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="score" label="信用分" width="88" align="center" />
+          <el-table-column label="等级" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="levelTagType(row.creditLevel)" size="small" effect="light" round>
+                {{ creditLevelLabel(row.creditLevel) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="88" align="center" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" text @click="openAdjust(row)">调分</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-table v-else :data="disputes.records" v-loading="dLoading" stripe class="data-table">
+          <el-table-column prop="id" label="工单号" width="80" />
+          <el-table-column label="申诉人" width="110" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.reporterDisplayName || row.reporterUsername || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="被诉方" width="110" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.targetDisplayName || row.targetUsername || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="关联" width="110">
+            <template #default="{ row }">
+              <span class="type-pill">{{ creditRelatedTypeLabel(row.relatedType) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="reason" label="事由" min-width="140" show-overflow-tooltip />
+          <el-table-column label="状态" width="96" align="center">
+            <template #default="{ row }">
+              <el-tag :type="disputeTagType(row.status)" size="small" effect="light" round>
+                {{ disputeStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createTime" label="时间" width="168">
+            <template #default="{ row }"><span class="time-cell">{{ formatTime(row.createTime) }}</span></template>
+          </el-table-column>
+          <el-table-column label="操作" width="140" fixed="right" align="center">
+            <template #default="{ row }">
+              <template v-if="row.status === 'PENDING'">
+                <el-button type="success" size="small" text @click="resolveRow(row, 'RESOLVED')">处理</el-button>
+                <el-button type="danger" size="small" text @click="resolveRow(row, 'REJECTED')">驳回</el-button>
+              </template>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="pager">
+          <el-pagination
+            v-if="activeTab === 'profiles'"
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="profiles.total"
+            v-model:current-page="pQuery.current"
+            v-model:page-size="pQuery.size"
+            :page-sizes="[10, 20, 50]"
+            @current-change="loadProfiles"
+            @size-change="loadProfiles"
+          />
+          <el-pagination
+            v-else
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="disputes.total"
+            v-model:current-page="dQuery.current"
+            v-model:page-size="dQuery.size"
+            :page-sizes="[10, 20, 50]"
+            @current-change="loadDisputes"
+            @size-change="loadDisputes"
+          />
+        </div>
+      </div>
+    </div>
+
+    <el-dialog v-model="adjustVisible" width="460px" destroy-on-close class="admin-dialog" align-center @close="resetAdjust">
+      <template #header>
+        <div class="dlg-head">
+          <el-icon class="dlg-icon"><Edit /></el-icon>
+          <div>
+            <div class="dlg-title">人工调整信用分</div>
+            <div class="dlg-sub">用户：{{ adjustRow?.username }}</div>
+          </div>
+        </div>
+      </template>
+      <el-form label-position="top">
         <el-form-item label="变化分">
-          <el-input-number v-model="adjustForm.delta" :min="-100" :max="100" />
+          <el-input-number v-model="adjustForm.delta" :min="-100" :max="100" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="原因">
-          <el-input v-model="adjustForm.reason" type="textarea" rows="3" />
+        <el-form-item label="调整原因" required>
+          <el-input v-model="adjustForm.reason" type="textarea" :rows="3" placeholder="请填写调分原因" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="adjustVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitAdjust">确定</el-button>
+        <el-button round @click="adjustVisible = false">取消</el-button>
+        <el-button type="primary" round @click="submitAdjust">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -143,22 +152,24 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  listCreditProfiles,
-  adjustCredit,
-  listCreditDisputes,
-  resolveCreditDispute
-} from '../../api/admin'
-import { API_BASE_URL } from '../../utils/request'
+import { Edit, Medal, Search } from '@element-plus/icons-vue'
+import { listCreditProfiles, adjustCredit, listCreditDisputes, resolveCreditDispute } from '../../api/admin'
 import { creditRelatedTypeLabel, creditLevelLabel, disputeStatusLabel } from '../../utils/enumLabel'
 
-const resolveUploadUrl = (u) => {
-  if (!u) return '#'
-  const s = String(u).trim()
-  if (s.startsWith('http://') || s.startsWith('https://')) return s
-  const base = API_BASE_URL.replace(/\/$/, '')
-  const path = s.startsWith('/') ? s : `/${s}`
-  return `${base}${path}`
+const formatTime = (v) => {
+  if (!v) return '—'
+  const s = String(v).replace('T', ' ')
+  return s.length > 16 ? s.slice(0, 16) : s
+}
+
+const levelTagType = (l) => {
+  const m = { EXCELLENT: 'success', GOOD: 'primary', NORMAL: 'warning', RISKY: 'danger' }
+  return m[l] || 'info'
+}
+
+const disputeTagType = (s) => {
+  const m = { PENDING: 'warning', RESOLVED: 'success', REJECTED: 'danger' }
+  return m[s] || 'info'
 }
 
 const activeTab = ref('profiles')
@@ -174,6 +185,11 @@ const disputes = reactive({ records: [], total: 0 })
 const adjustVisible = ref(false)
 const adjustRow = ref(null)
 const adjustForm = reactive({ delta: 0, reason: '' })
+
+const onTabChange = () => {
+  if (activeTab.value === 'profiles') loadProfiles()
+  else loadDisputes()
+}
 
 const loadProfiles = async () => {
   pLoading.value = true
@@ -265,22 +281,58 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.page-title {
-  margin: 0 0 16px;
-}
-.mb16 {
-  margin-bottom: 16px;
-}
-.pager {
-  margin-top: 16px;
+@use '../../styles/feature-page.scss';
+
+.tab-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: #fafbfc;
+  border-bottom: 1px solid #f0f3f8;
 }
-.ev-link {
-  line-height: 1.6;
+
+.kw-input {
+  max-width: 280px;
 }
-/* 长数字用户 ID 在固定布局下与表头对齐，避免错列感 */
+
+.type-pill {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eef2f8;
+  color: #3d5a80;
+}
+
+.dlg-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dlg-icon {
+  font-size: 26px;
+  color: #3d5a80;
+}
+
+.dlg-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dlg-sub {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 4px;
+}
+
 :deep(.credit-profiles-table .el-table__cell) {
   word-break: break-all;
+}
+</style>
+
+<style lang="scss">
+.admin-dialog .el-dialog__footer {
+  border-top: 1px solid #f0f3f8;
 }
 </style>

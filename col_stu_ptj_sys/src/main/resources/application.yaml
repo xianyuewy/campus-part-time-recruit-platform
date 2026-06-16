@@ -38,3 +38,6 @@ logging:
 
 app:
   upload-dir: D:/code/col_stu_ptj_sys/uploads
+volcengine:
+  api-key: ark-1b04d8cd-cd18-4ed4-9014-986f99095c7b-cf66f
+  endpoint-id: ep-20260615122020-tppp7
