@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/col_stu_ptj_sys.iml" filepath="$PROJECT_DIR$/.idea/col_stu_ptj_sys.iml" />
+      <module fileurl="file://$PROJECT_DIR$/col_stu_ptj_sys/col_stu_ptj_sys.iml" filepath="$PROJECT_DIR$/col_stu_ptj_sys/col_stu_ptj_sys.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/graduation-design.iml" filepath="$PROJECT_DIR$/.idea/graduation-design.iml" />
     </modules>
   </component>
 </project>
