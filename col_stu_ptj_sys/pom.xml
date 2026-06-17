@@ -135,6 +135,25 @@
             <artifactId>onnxruntime</artifactId>
             <version>1.18.0</version> <!-- 请使用与LangChain4j 0.32.0兼容的最新稳定版 -->
         </dependency>
+        <!-- 解析Word文档 .doc/.docx -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+
+        <!-- 解析PDF文档 -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.29</version>
+        </dependency>
+        <!-- fastjson JSON解析工具 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.83</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

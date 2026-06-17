@@ -11,6 +11,7 @@
 
     <div class="feature-body">
       <div v-loading="loading" class="form-card">
+        <!-- 原有：简历附件 完全不动 -->
         <div class="form-section">
           <div class="section-head">
             <el-icon><Paperclip /></el-icon>
@@ -30,6 +31,29 @@
           </div>
         </div>
 
+        <!-- ========== 新增：AI 智能解析区块 ========== -->
+        <div class="form-section">
+          <div class="section-head">
+            <el-icon><MagicStick /></el-icon>
+            <span>AI 智能解析</span>
+          </div>
+          <div class="attach-row">
+            <el-upload
+                :show-file-list="false"
+                accept=".pdf,.docx"
+                :disabled="parsing"
+                :http-request="onParseResume"
+            >
+              <el-button type="success" round :loading="parsing">
+                上传简历自动填充
+              </el-button>
+            </el-upload>
+            <span class="hint">支持 PDF / DOCX 格式，解析后自动填入下方表单，请核对后保存</span>
+          </div>
+        </div>
+        <!-- ========== 新增结束 ========== -->
+
+        <!-- 原有：在线简历 完全不动 -->
         <div class="form-section">
           <div class="section-head"><el-icon><EditPen /></el-icon><span>在线简历</span></div>
           <el-form label-position="top" class="resume-form">
@@ -57,15 +81,20 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Document, EditPen, Paperclip } from '@element-plus/icons-vue'
-import { getMyResume, saveMyResume, uploadResumeAttachment } from '../api/student'
+import { Document, EditPen, Paperclip, MagicStick } from '@element-plus/icons-vue'
+// 替换引入：去掉原来的 parseResume，换成两个异步接口
+import { getMyResume, saveMyResume, uploadResumeAttachment, submitParseTask, getParseResult } from '../api/student'
 import { API_BASE_URL } from '../utils/request'
 
 const loading = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
+const parsing = ref(false)
+// 轮询定时器，用于组件销毁时清理
+let pollTimer = null
+
 const form = reactive({
   selfIntro: '',
   education: '',
@@ -133,9 +162,92 @@ const onUploadResume = async ({ file }) => {
   }
 }
 
+// ========== AI 简历解析（异步轮询版·修复后） ==========
+const onParseResume = async ({ file }) => {
+  // 1. 文件格式校验
+  const fileName = file.name.toLowerCase()
+  const isLegal = fileName.endsWith('.pdf') || fileName.endsWith('.docx')
+  if (!isLegal) {
+    ElMessage.error('仅支持 PDF 和 DOCX 格式的简历文件')
+    return
+  }
+  if (file.size / 1024 / 1024 > 10) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return
+  }
+
+  parsing.value = true
+  // 清空上一次的定时器
+  if (pollTimer) clearInterval(pollTimer)
+
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+
+    // 2. 提交解析任务
+    const submitRes = await submitParseTask(fd)
+    // 对齐项目原有接口写法：直接用 res.success 判断
+    if (!submitRes.success) {
+      ElMessage.error(submitRes.message || '提交解析失败')
+      parsing.value = false
+      return
+    }
+    const taskId = submitRes.data
+
+    // 3. 启动轮询查询结果
+    let count = 0
+    const maxCount = 45
+
+    pollTimer = setInterval(async () => {
+      count++
+      try {
+        const res = await getParseResult(taskId)
+
+        // 解析完成：有数据就回填
+        if (res.success && res.data) {
+          clearInterval(pollTimer)
+          pollTimer = null
+          const data = res.data
+          form.education = data.school || form.education
+          form.skills = data.skills?.join('、') || form.skills
+          form.workExperience = data.experience || form.workExperience
+          form.selfIntro = data.selfEvaluation || form.selfIntro
+          ElMessage.success('解析完成，请核对信息后手动保存')
+          parsing.value = false
+        }
+
+        // 超时处理
+        if (count >= maxCount) {
+          clearInterval(pollTimer)
+          pollTimer = null
+          ElMessage.error('解析超时，请重试')
+          parsing.value = false
+        }
+      } catch (err) {
+        clearInterval(pollTimer)
+        pollTimer = null
+        ElMessage.error('查询解析结果失败')
+        parsing.value = false
+      }
+    }, 1000)
+
+  } catch (e) {
+    console.error('提交解析异常详情：', e) // 报错时看控制台
+    ElMessage.error('解析提交失败，请检查网络')
+    parsing.value = false
+  }
+}
+
+// 组件销毁时清理定时器，防止内存泄漏
+onBeforeUnmount(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+})
+
 onMounted(load)
 </script>
-
 <style scoped lang="scss">
 @use '../styles/feature-page.scss';
 

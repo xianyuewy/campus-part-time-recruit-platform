@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/ai/**").permitAll()
+                        .requestMatchers("/api/student/resume/parse").hasRole("STUDENT")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -64,7 +65,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",  // Vue开发服务器
                 "http://127.0.0.1:3000",  // 本地回环地址
-                "http://localhost:8080"   // 后端自身（可选）
+                "http://localhost:8080"   // 后端自身
         ));
 
         // 允许的方法 - 已包含OPTIONS，没问题
