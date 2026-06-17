@@ -25,7 +25,7 @@
 
 ## 🎬 项目演示
 视频文件体积较大（451MB），建议下载至本地观看：
-[完整功能演示视频]([https://github.com/xianyuewy/-springboot-/releases/download/%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91/Tencent.Video.2026.06.16.-.12.39.28.02.mp4](https://github.com/xianyuewy/-springboot-/releases/download/%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91/Tencent.Video.2026.06.16.-.12.39.28.02.mp4))
+[完整功能演示视频]([https://github.com/xianyuewy/campus-part-time-recruit-platform/releases/download/%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91/Tencent.Video.2026.06.16.-.12.39.28.02.mp4))
 
 > 建议：后续可截取10~20秒功能动图/GIF 放在此处，提升预览效果
 
@@ -54,3 +54,4 @@
 ```bash
 git clone https://github.com/xianyuewy/campus-part-time-recruit-platform.git
 cd campus-part-time-recruit-platform/col_stu_ptj_sys
+
