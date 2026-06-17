@@ -27,7 +27,6 @@
 视频文件体积较大（451MB），建议下载至本地观看：
 [完整功能演示视频]([https://github.com/xianyuewy/campus-part-time-recruit-platform/releases/download/%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91/Tencent.Video.2026.06.16.-.12.39.28.02.mp4))
 
-> 建议：后续可截取10~20秒功能动图/GIF 放在此处，提升预览效果
 
 ## 🖥️ 技术栈
 ### 后端
@@ -43,7 +42,7 @@
 
 ## 🚀 环境准备 & 快速启动
 ### 前置要求
-- JDK 1.8+
+- JDK 17
 - Maven 3.6+
 - MySQL 5.7 / 8.0
 - Redis 5.0+
